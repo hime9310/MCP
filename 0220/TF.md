@@ -60,3 +60,101 @@ ECSサービスの `desired_count` を操作してコストを削減します。
 6. **`terraform.tfvars`**: 具体的なパラメータ値　（VPCとサブネットは既存利用）
 
 ---
+
+iam_policy
+ecs_assume_role_policy.json
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal":{
+                "Service":"ecs-tasks.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}
+```
+ecs_task_rol_policy.json
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal":{
+                "Service":"ecs-tasks.amazonaws.com"
+            },
+            "Action": [
+                "ssmmessages:CreateControlChannel",
+                "ssmmessages:CreateDataChannel",
+                "ssmmessages:OpenControlChannel",
+                "ssmmessages:OpenDataChannel"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+########################################
+# IAM
+########################################
+
+# --------------------------------
+# ECS タスク実行ロールの作成
+# --------------------------------
+
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name               = "${local.name_prefix}-ECSTaskExecutionRole-${var.name_suffix}"
+  path               = "/"
+
+  assume_role_policy = file("${path.module}/iam_policy/ecs_assume_role_policy.json")
+
+  # 社内事情で自動付与される「アクセス許可の境界」の無視
+  lifecycle {
+    ignore_changes = [
+      permissions_boundary
+    ]
+  }
+}
+
+# --------------------------------
+# ECS タスク実行ロールにAWS管理ポリシーを追加
+# --------------------------------
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
+  role       = aws_iam_role.ecs_task_execution_role.id
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# --------------------------------
+# ECS タスクロールの作成
+# --------------------------------
+
+resource "aws_iam_role" "ecs_task_role" {
+  name               = "${local.name_prefix}-ECSTaskRole-${var.name_suffix}"
+  path               = "/"
+
+  assume_role_policy = file("${path.module}/iam_policy/ecs_assume_role_policy.json")
+
+  # デロイトの事情で自動付与される「アクセス許可の境界」の無視
+  lifecycle {
+    ignore_changes = [
+      permissions_boundary
+    ]
+  }
+}
+
+# --------------------------------
+# ECS タスクロールにインラインポリシーを追加
+# --------------------------------
+
+resource "aws_iam_role_policy" "ecs_task_role" {
+  name   = "${local.name_prefix}-ECSTaskRolePolicy-${var.name_suffix}"
+  role   = aws_iam_role.ecs_task_role.id
+  
+  policy = file("${path.module}/iam_policy/ecs_task_role_policy.json")
+}
