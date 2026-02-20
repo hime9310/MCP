@@ -40,18 +40,18 @@ resource "aws_security_group" "mcp" {
   description = "Security group for Terraform MCP Server"
   vpc_id      = var.vpc_id
 
-  # インバウンド: Port 80 全開（Kiro IDEからの接続）
+  # インバウンド: Port 80（Kiro IDEからの接続）
   ingress {
-    description = "MCP HTTP from anywhere"
+    description = "MCP HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # アウトバウンド: Port 443 のみ許可（Terraform Registry等へのHTTPS通信）
+  # アウトバウンド: Port 443（Terraform Registry等へのHTTPS通信）
   egress {
-    description = "HTTPS to Terraform Registry and external services"
+    description = "HTTPS outbound"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -130,11 +130,10 @@ resource "aws_ecs_service" "mcp" {
   network_configuration {
     subnets          = var.subnet_ids
     security_groups  = [aws_security_group.mcp.id]
-    assign_public_ip = true # パブリックサブネット利用のため true
+    assign_public_ip = false
   }
 
-  # EventBridgeによるdesired_count変更と競合しないよう、
-  # deploymentの都度desired_countをTerraformで上書きしないようにする
+  # EventBridgeによるdesired_count変更をTerraformが上書きしないようにする
   lifecycle {
     ignore_changes = [desired_count]
   }
@@ -173,12 +172,12 @@ resource "aws_iam_role_policy" "eventbridge_scheduler_ecs" {
 }
 
 # ============================================================
-# EventBridge Scheduler: 停止 (22:00 JST = 13:00 UTC)
+# EventBridge Scheduler: 停止 (毎日 22:00 JST)
 # ============================================================
 
 resource "aws_scheduler_schedule" "mcp_stop" {
   name        = "${var.ecs_service_name}-stop"
-  description = "ECSサービス停止: 毎日22:00 JST (13:00 UTC)"
+  description = "ECSサービス停止: 毎日 22:00 JST"
 
   flexible_time_window {
     mode = "OFF"
@@ -200,12 +199,12 @@ resource "aws_scheduler_schedule" "mcp_stop" {
 }
 
 # ============================================================
-# EventBridge Scheduler: 起動 (08:00 JST = 23:00 UTC 前日)
+# EventBridge Scheduler: 起動 (毎日 08:00 JST)
 # ============================================================
 
 resource "aws_scheduler_schedule" "mcp_start" {
   name        = "${var.ecs_service_name}-start"
-  description = "ECSサービス起動: 毎日08:00 JST (23:00 UTC 前日)"
+  description = "ECSサービス起動: 毎日 08:00 JST"
 
   flexible_time_window {
     mode = "OFF"

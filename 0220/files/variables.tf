@@ -23,7 +23,7 @@ variable "vpc_id" {
 }
 
 variable "subnet_ids" {
-  description = "ECSタスクを配置するパブリックサブネットのIDリスト"
+  description = "ECSタスクを配置するサブネットのIDリスト"
   type        = list(string)
 }
 
@@ -103,7 +103,7 @@ variable "mcp_endpoint" {
 # ============================================================
 
 variable "log_group_name" {
-  description = "CloudWatch LogsグループName"
+  description = "CloudWatch Logsグループ名"
   type        = string
   default     = "/ecs/terraform-mcp-server"
 }
@@ -115,17 +115,17 @@ variable "log_retention_days" {
 }
 
 # ============================================================
-# EventBridgeスケジュール（JST → UTC変換済み）
+# EventBridgeスケジュール
 # ============================================================
 
 variable "schedule_stop_cron" {
-  description = "ECSサービス停止スケジュール（UTC）。デフォルトは毎日22:00 JSTに停止 → UTC 13:00"
+  description = "ECSサービス停止スケジュール（JST）"
   type        = string
-  default     = "cron(0 13 * * ? *)"
+  default     = "cron(0 22 * * ? *)"
 }
 
 variable "schedule_start_cron" {
-  description = "ECSサービス起動スケジュール（UTC）。デフォルトは毎日08:00 JSTに起動 → UTC 23:00 (前日)"
+  description = "ECSサービス起動スケジュール（JST）"
   type        = string
-  default     = "cron(0 23 * * ? *)"
+  default     = "cron(0 8 * * ? *)"
 }

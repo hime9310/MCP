@@ -30,8 +30,6 @@ AWS Marketplace の Terraform MCP Server を ECS Fargate で稼働させるた�
 
 ### 1. REPLACE_ME プレースホルダーを書き換える
 
-以下の2ファイルの `REPLACE_ME_*` を実際の値に変更します。
-
 **`versions.tf`**
 ```hcl
 backend "s3" {
@@ -61,24 +59,18 @@ terraform apply
 
 ## Kiro IDE との接続
 
-タスク起動後、ECSコンソールまたはCLIでタスクのパブリックIPを確認します。
+タスク起動後、ECSコンソールまたはCLIでタスクのプライベートIPを確認します。
 
 ```bash
-# タスクのENI情報からパブリックIPを取得する例
 TASK_ARN=$(aws ecs list-tasks \
   --cluster terraform-mcp-server-cluster \
   --service-name terraform-mcp-server \
   --query 'taskArns[0]' --output text)
 
-ENI_ID=$(aws ecs describe-tasks \
+aws ecs describe-tasks \
   --cluster terraform-mcp-server-cluster \
   --tasks $TASK_ARN \
-  --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value' \
-  --output text)
-
-aws ec2 describe-network-interfaces \
-  --network-interface-ids $ENI_ID \
-  --query 'NetworkInterfaces[0].Association.PublicIp' \
+  --query 'tasks[0].containers[0].networkInterfaces[0].privateIpv4Address' \
   --output text
 ```
 
@@ -89,13 +81,13 @@ Kiro IDE の MCP 設定に以下を追加します：
   "mcpServers": {
     "terraform-mcp-server": {
       "type": "sse",
-      "url": "http://<取得したパブリックIP>:80/mcp"
+      "url": "http://<取得したプライベートIP>:80/mcp"
     }
   }
 }
 ```
 
-> ⚠️ タスクが再起動するたびにIPが変わります。再起動後は上記コマンドでIPを再確認し、Kiroの設定を更新してください。
+> ⚠️ タスクが再起動するたびにIPが変わります。再起動後はIPを再確認し、Kiroの設定を更新してください。
 
 ---
 
@@ -105,8 +97,6 @@ Kiro IDE の MCP 設定に以下を追加します：
 |---|---|---|
 | 起動 | 毎日 08:00 | `desired_count = 1` |
 | 停止 | 毎日 22:00 | `desired_count = 0` |
-
-EventBridge Scheduler の `schedule_expression_timezone = "Asia/Tokyo"` を使用しているため、cron式はJST時刻で記載しています。
 
 ---
 
