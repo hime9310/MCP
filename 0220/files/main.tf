@@ -1,4 +1,18 @@
 # ============================================================
+# SNS Topic（CloudWatchアラーム通知用）
+# ============================================================
+
+resource "aws_sns_topic" "alarm" {
+  name = "${var.name_prefix}-${var.environment}-mcp-alarm"
+}
+
+resource "aws_sns_topic_subscription" "alarm_email" {
+  topic_arn = aws_sns_topic.alarm.arn
+  protocol  = "email"
+  endpoint  = var.alarm_notification_email
+}
+
+# ============================================================
 # CloudWatch Logs
 # ============================================================
 
@@ -101,7 +115,7 @@ resource "aws_ecs_task_definition" "mcp" {
         { name = "TRANSPORT_MODE", value = var.transport_mode },
         { name = "TRANSPORT_PORT", value = tostring(var.transport_port) },
         { name = "TRANSPORT_HOST", value = var.transport_host },
-        { name = "MCP_ENDPOINT", value = var.mcp_endpoint }
+        { name = "MCP_ENDPOINT",   value = var.mcp_endpoint }
       ]
 
       logConfiguration = {
@@ -140,6 +154,76 @@ resource "aws_ecs_service" "mcp" {
 }
 
 # ============================================================
+# CloudWatch Alarms
+# ============================================================
+
+# CPU使用率アラーム
+resource "aws_cloudwatch_metric_alarm" "cpu_high" {
+  alarm_name          = "${var.ecs_service_name}-cpu-high"
+  alarm_description   = "ECS CPU使用率が${var.alarm_cpu_threshold}%を超過"
+  namespace           = "AWS/ECS"
+  metric_name         = "CPUUtilization"
+  statistic           = "Average"
+  period              = 300 # 5分
+  evaluation_periods  = 2
+  threshold           = var.alarm_cpu_threshold
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching" # タスク停止中（土日・夜間）はアラームしない
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.mcp.name
+    ServiceName = aws_ecs_service.mcp.name
+  }
+
+  alarm_actions = [aws_sns_topic.alarm.arn]
+  ok_actions    = [aws_sns_topic.alarm.arn]
+}
+
+# メモリ使用率アラーム
+resource "aws_cloudwatch_metric_alarm" "memory_high" {
+  alarm_name          = "${var.ecs_service_name}-memory-high"
+  alarm_description   = "ECS メモリ使用率が${var.alarm_memory_threshold}%を超過"
+  namespace           = "AWS/ECS"
+  metric_name         = "MemoryUtilization"
+  statistic           = "Average"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = var.alarm_memory_threshold
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.mcp.name
+    ServiceName = aws_ecs_service.mcp.name
+  }
+
+  alarm_actions = [aws_sns_topic.alarm.arn]
+  ok_actions    = [aws_sns_topic.alarm.arn]
+}
+
+# タスク数アラーム（実行中タスクが0になったら通知）
+resource "aws_cloudwatch_metric_alarm" "task_count_zero" {
+  alarm_name          = "${var.ecs_service_name}-task-count-zero"
+  alarm_description   = "ECS 実行中タスク数が0になった（平日稼働時間内に発生した場合は障害の可能性）"
+  namespace           = "ECS/ContainerInsights"
+  metric_name         = "RunningTaskCount"
+  statistic           = "Average"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.mcp.name
+    ServiceName = aws_ecs_service.mcp.name
+  }
+
+  alarm_actions = [aws_sns_topic.alarm.arn]
+  ok_actions    = [aws_sns_topic.alarm.arn]
+}
+
+# ============================================================
 # IAM: EventBridge Scheduler Role
 # ============================================================
 
@@ -172,12 +256,12 @@ resource "aws_iam_role_policy" "eventbridge_scheduler_ecs" {
 }
 
 # ============================================================
-# EventBridge Scheduler: 停止 (毎日 22:00 JST)
+# EventBridge Scheduler: 停止（平日 22:00 JST）
 # ============================================================
 
 resource "aws_scheduler_schedule" "mcp_stop" {
   name        = "${var.ecs_service_name}-stop"
-  description = "ECSサービス停止: 毎日 22:00 JST"
+  description = "ECSサービス停止: 平日 22:00 JST（月〜金）"
 
   flexible_time_window {
     mode = "OFF"
@@ -199,12 +283,12 @@ resource "aws_scheduler_schedule" "mcp_stop" {
 }
 
 # ============================================================
-# EventBridge Scheduler: 起動 (毎日 08:00 JST)
+# EventBridge Scheduler: 起動（平日 08:00 JST）
 # ============================================================
 
 resource "aws_scheduler_schedule" "mcp_start" {
   name        = "${var.ecs_service_name}-start"
-  description = "ECSサービス起動: 毎日 08:00 JST"
+  description = "ECSサービス起動: 平日 08:00 JST（月〜金）"
 
   flexible_time_window {
     mode = "OFF"

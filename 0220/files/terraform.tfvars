@@ -2,10 +2,7 @@
 # ✏️ REPLACE_ME: 確定後に書き換えてください
 # ============================================================
 
-# AWSリージョン
-aws_region = "REPLACE_ME_AWS_REGION" # 例: "ap-northeast-1"
-
-# 環境名
+aws_region  = "REPLACE_ME_AWS_REGION" # 例: "ap-northeast-1"
 environment = "dev"
 
 # ------------------------------------------------------------
@@ -27,6 +24,14 @@ subnet_ids = [
 container_image_uri = "REPLACE_ME_CONTAINER_IMAGE_URI"
 # 例: "709825985650.dkr.ecr.us-east-1.amazonaws.com/hashicorp/terraform-mcp-server:latest"
 
+# ------------------------------------------------------------
+# CloudWatch アラーム通知先
+# ------------------------------------------------------------
+
+
+alarm_sns_topic_arn = "REPLACE_ME_SNS_TOPIC_ARN" # ✏️ 既存SNS Topic ARNを記載 例: "arn:aws:sns:ap-northeast-1:123456789012:your-topic"
+# 例: "arn:aws:sns:ap-northeast-1:123456789012:mcp-server-alerts"
+
 # ============================================================
 # 以下はデフォルト値のまま変更不要（必要に応じて上書き）
 # ============================================================
@@ -46,6 +51,10 @@ mcp_endpoint   = "/mcp"
 log_group_name     = "/ecs/terraform-mcp-server"
 log_retention_days = 30
 
-# EventBridgeスケジュール（JST）
-schedule_stop_cron  = "cron(0 22 * * ? *)" # 毎日 22:00 JST 停止
-schedule_start_cron = "cron(0 8 * * ? *)"  # 毎日 08:00 JST 起動
+# CloudWatch アラームしきい値
+alarm_cpu_threshold    = 80 # CPU使用率 80% 超過で通知
+alarm_memory_threshold = 80 # メモリ使用率 80% 超過で通知
+
+# EventBridgeスケジュール（平日のみ / JST）
+schedule_stop_cron  = "cron(0 22 ? * MON-FRI *)" # 平日 22:00 JST 停止
+schedule_start_cron = "cron(0 8 ? * MON-FRI *)"  # 平日 08:00 JST 起動

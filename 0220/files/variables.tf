@@ -115,17 +115,45 @@ variable "log_retention_days" {
 }
 
 # ============================================================
-# EventBridgeスケジュール
+# CloudWatch アラーム
+# ============================================================
+
+variable "name_prefix" {
+  description = "リソース名のプレフィックス"
+  type        = string
+  default     = "cms-kiro"
+}
+
+variable "alarm_notification_email" {
+  description = "CloudWatchアラーム通知先メールアドレス"
+  type        = string
+  default     = "xiaji@tohmatau.co.jp"
+}
+
+variable "alarm_cpu_threshold" {
+  description = "CPUアラームのしきい値（%）"
+  type        = number
+  default     = 80
+}
+
+variable "alarm_memory_threshold" {
+  description = "メモリアラームのしきい値（%）"
+  type        = number
+  default     = 80
+}
+
+# ============================================================
+# EventBridgeスケジュール（平日のみ）
 # ============================================================
 
 variable "schedule_stop_cron" {
-  description = "ECSサービス停止スケジュール（JST）"
+  description = "ECSサービス停止スケジュール（JST）。平日 22:00"
   type        = string
-  default     = "cron(0 22 * * ? *)"
+  default     = "cron(0 22 ? * MON-FRI *)"
 }
 
 variable "schedule_start_cron" {
-  description = "ECSサービス起動スケジュール（JST）"
+  description = "ECSサービス起動スケジュール（JST）。平日 08:00"
   type        = string
-  default     = "cron(0 8 * * ? *)"
+  default     = "cron(0 8 ? * MON-FRI *)"
 }

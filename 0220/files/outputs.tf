@@ -51,12 +51,32 @@ output "eventbridge_scheduler_role_arn" {
 }
 
 # ============================================================
-# CloudWatch Logs
+# CloudWatch
 # ============================================================
+
+output "sns_topic_arn" {
+  description = "CloudWatchアラーム通知用SNS Topic ARN"
+  value       = aws_sns_topic.alarm.arn
+}
 
 output "log_group_name" {
   description = "CloudWatch Logsグループ名"
   value       = aws_cloudwatch_log_group.mcp.name
+}
+
+output "alarm_cpu_name" {
+  description = "CPU使用率アラーム名"
+  value       = aws_cloudwatch_metric_alarm.cpu_high.alarm_name
+}
+
+output "alarm_memory_name" {
+  description = "メモリ使用率アラーム名"
+  value       = aws_cloudwatch_metric_alarm.memory_high.alarm_name
+}
+
+output "alarm_task_count_name" {
+  description = "タスク数アラーム名"
+  value       = aws_cloudwatch_metric_alarm.task_count_zero.alarm_name
 }
 
 # ============================================================
@@ -65,10 +85,10 @@ output "log_group_name" {
 
 output "kiro_connection_note" {
   description = "Kiro IDE接続URL（タスク起動後にプライベートIPを確認して更新）"
-  value       = "http://<FargateタスクのパブリックIP>:80/mcp  ※タスク起動後にECSコンソールで確認"
+  value       = "http://<FargateタスクのプライベートIP>:80/mcp  ※タスク起動後にECSコンソールで確認"
 }
 
-output "eventbridge_schedule_note" {
-  description = "EventBridgeスケジュール情報"
-  value       = "起動: 毎日 08:00 JST / 停止: 毎日 22:00 JST"
+output "schedule_note" {
+  description = "稼働スケジュール"
+  value       = "平日（月〜金）08:00 JST 起動 / 22:00 JST 停止。土日は終日停止。"
 }
